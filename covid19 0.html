@@ -1,0 +1,248 @@
+<!doctype html>
+<html>
+
+<canvas id="cnv" width="600" height="400"></canvas>
+
+<script>
+'use strict';
+
+// sketch.js
+const maxForce = 0.21;
+var population;
+
+var width = 400;
+var height = 400;
+
+var framerate = 1/20;
+
+var infdist = 5; // infection distance
+var maxinft = 1000; // max length of infection
+var deathrt = 1/1000; // death rate per cycle
+
+window.onload=function() {
+	var canv=document.getElementById("cnv");
+	var ctx=canv.getContext("2d");
+
+	population = new population(100, 300, 0.05);
+
+	setInterval(draw, 1000 * framerate, canv, ctx); // calls a function or evaluates an expression at specified intervals
+}
+
+function draw(canv, ctx) { // update frame
+	ctx.fillStyle="black";
+	ctx.fillRect(0, 0, width, canv.height); // draw background
+	ctx.fillStyle="white";
+	ctx.fillRect(width, 0, canv.width, canv.height); // draw background	
+	population.run(ctx);
+}
+
+// population
+function population(popSize, lifespan, infRate) { // create population
+    this.size = popSize; // number of persons
+    this.infRate = infRate;
+    this.lifespan = lifespan;
+    this.age = 0; // population age
+    this.persons = []; // array of persons
+	
+	this.ninfected = 0; // count infected in population
+	
+    for (var i = 0; i < this.size; i++) { // associates a person to an array index
+        this.persons.push(new person());
+		if ( Math.random() < infRate )
+			this.persons[i].infectThis();
+    }
+	
+    this.run = function (ctx) { // run: update persons infections and draw them, increment age
+	
+		this.ninfected = 0;
+		
+        for (var i = 0; i < this.size; i++) {
+		
+			
+			if ( this.persons[i].infected )
+				this.ninfected += 1;
+				
+            this.persons[i].update();
+			
+			for (var j = 0; j < this.size; j++) { // handle interactions
+				if ( i != j && this.persons[i].distanceToPerson( this.persons[j] ) < infdist ) {
+				
+					this.persons[i].applyForce( this.persons[j].acceleration ); // collision handling
+					this.persons[j].applyForce( this.persons[i].acceleration );
+				
+					if ( this.persons[i].infected ) // infecting others
+						this.persons[j].infectThis();
+				}
+			}
+            this.persons[i].draw(ctx);
+        }
+		
+        this.age++;
+		this.drawgraphs(ctx);
+    };
+	
+	this.drawgraphs = function ( ctx ) { // draw graphs
+		ctx.font = "20px Arial";
+		ctx.fillStyle = "red";
+		ctx.fillText(this.ninfected, 420, 30);
+	}
+}
+
+// person
+function person() { // person class
+    this.age = 0; // person age
+    this.position = new Vec(randIntnp(width/2)+width/2, randIntnp(height/2)+height/2); // init positions
+    this.velocity = new Vec(randIntnp(10) / 12, randIntnp(10) / 12);
+    this.acceleration = new Vec(randIntnp(10) / 20, randIntnp(10) / 20);
+    this.infected = false; // is person infected?
+    this.dead = false; // person dead?
+	this.immune = false; // person immune?
+	this.inftime = 0; // infected for how long?
+	//this.path = []; // path logging
+	
+	this.infectThis = function () { // infect this person
+		if (!this.dead && !this.immune)
+			this.infected = true;
+	};
+
+    this.applyForce = function (force) { // person can recieve force and add to acceleration
+        this.acceleration.vadd(force);
+		this.acceleration.vlimit(maxForce);
+    };
+
+    this.update = function () { // update physics and handle infections
+		this.age++;
+		if (this.infected) { // handle infection and consequences
+			this.inftime++;
+			if ( Math.random() < deathrt )
+				this.dead = true;
+			if ( this.inftime > maxinft )
+				this.infected = false;
+				this.immune = true;
+		}
+        if (!this.dead) {
+            this.velocity.vadd(this.acceleration);
+            this.position.vadd(this.velocity);
+            this.acceleration.vmultc(0);
+			
+			// path logging
+			//this.path.push(JSON.parse(JSON.stringify(this.position)));
+        }
+		if (this.position.x > width || this.position.x < 0)
+			this.velocity.x *= -1;
+		if (this.position.y > height || this.position.y < 0)
+			this.velocity.y *= -1;
+    };
+
+    this.draw = function (ctx) {
+		//console.log('show ' + this.position.x)
+		if (!this.dead) {
+			ctx.beginPath();
+			if (this.infected)
+				ctx.strokeStyle="red";
+			else
+				ctx.strokeStyle="lime";
+			ctx.arc(this.position.x, this.position.y, 3, 0, 2*Math.PI);
+			ctx.stroke();
+		}
+		
+		// draw person path
+		//console.log('pos: ' + this.position.x);
+		/*for ( let i=0; i<this.path.length-1; i++ ) {
+			ctx.beginPath();
+			ctx.strokeStyle="Turquoise";
+			//console.log(' path ' + this.path[i].x);
+			ctx.moveTo(this.path[i].x, this.path[i].y);
+			//ctx.lineTo(this.path[i+1].x, this.path[i+1].y); // for straight line
+			ctx.lineTo(this.path[i].x+1, this.path[i].y+1); // dotted line
+			ctx.stroke();
+		}*/
+    };
+
+    this.distanceToPerson = function (person) { // distance to other person
+        return dist(this.position.x, this.position.y, person.position.x, person.position.y);
+    };
+}
+
+// vector functions
+
+function Vec(x, y) {
+	this.x = x;
+	this.y = y;
+}
+
+function rndVec() {
+	let v = new Vec(randIntnp(10), randIntnp(10));
+	v.vnorm();
+	return v;
+}
+
+Vec.prototype.set = function(a) {
+	this.x += a.x;
+	this.y += a.y;
+}
+
+Vec.prototype.eqpos = function(a) {
+	if ( this.x == a.x && this.y == a.y )
+		return true;
+	return false;
+}
+
+Vec.prototype.vadd = function(a) {
+	this.x += a.x;
+	this.y += a.y;
+}
+
+Vec.prototype.vsub = function(a) {
+	this.x -= a.x;
+	this.y -= a.y;
+}
+
+Vec.prototype.vlen = function() {
+	return Math.sqrt(( this.x * this.x ) + ( this.y * this.y ));
+}
+
+Vec.prototype.vmultc = function(c) {
+	this.x *= c;
+	this.y *= c;
+}
+
+Vec.prototype.vnorm = function() {
+	let vl = this.vlen();
+	if ( vl > 0 ) {
+		this.x /= vl;
+		this.y /= vl;
+	}
+}
+
+Vec.prototype.setMag = function(m) {
+	this.vnorm();
+	this.vmultc(m);
+}
+
+Vec.prototype.vlimit = function(l) {
+	if ( this.vlen() > l )
+		this.setMag(l);
+}
+
+// util functions
+
+function map(value, start0, stop0, start1, stop1) {
+	return ((value-start0)/(stop0-start0))*(stop1-start1)+start1;
+}
+
+function dist(x0, y0, x1, y1) {
+	let dx = x1 - x0;
+	let dy = y1 - y0;
+	return Math.sqrt(( dx * dx ) + ( dy * dy ));
+}
+
+function randInt( maxN ) {
+	return ~~( Math.random() * maxN );     // returns a number between 0 and maxN-1
+}
+
+function randIntnp( maxN ) {
+	return ~~( Math.random() * 2 * maxN ) - maxN;     // returns a number between -(maxN-1) and maxN-1
+}
+</script>
+</html>
