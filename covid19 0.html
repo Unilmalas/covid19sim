@@ -1,23 +1,22 @@
 <!doctype html>
 <html>
 
-<canvas id="cnv" width="600" height="400"></canvas>
+<canvas id="cnv" width="900" height="400"></canvas>
 
 <script>
 'use strict';
 
-// sketch.js
 const maxForce = 0.21;
 var population;
 
 var width = 400;
 var height = 400;
 
-var framerate = 1/20;
+var framerate = 1/25;
 
 var infdist = 5; // infection distance
-var maxinft = 1000; // max length of infection
-var deathrt = 1/1000; // death rate per cycle
+var maxinft = 800; // max length of infection
+var deathrt = 1/2000; // death rate per cycle
 
 window.onload=function() {
 	var canv=document.getElementById("cnv");
@@ -29,7 +28,7 @@ window.onload=function() {
 }
 
 function draw(canv, ctx) { // update frame
-	ctx.fillStyle="black";
+	ctx.fillStyle="white";
 	ctx.fillRect(0, 0, width, canv.height); // draw background
 	ctx.fillStyle="white";
 	ctx.fillRect(width, 0, canv.width, canv.height); // draw background	
@@ -47,6 +46,9 @@ function population(popSize, lifespan, infRate) { // create population
 	this.ninfected = 0; // count infected in population
 	this.ndead = 0; // count deads in population
 	
+	this.sninf = []; // n infected historic
+	this.sndd = []; // n dead historic
+	
     for (var i = 0; i < this.size; i++) { // associates a person to an array index
         this.persons.push(new person());
 		if ( Math.random() < infRate )
@@ -59,7 +61,6 @@ function population(popSize, lifespan, infRate) { // create population
 		this.ndead = 0;
 		
         for (var i = 0; i < this.size; i++) {
-		
 			
 			if ( this.persons[i].infected ) // update statistics
 				this.ninfected += 1;
@@ -82,15 +83,40 @@ function population(popSize, lifespan, infRate) { // create population
         }
 		
         this.age++;
+		
+		if ( this.age % 10 == 0 ) {
+			this.sninf.push(this.ninfected);
+			this.sndd.push(this.ndead);
+			console.log(this.sninf);
+		}			
 		this.drawgraphs(ctx);
+	
     };
 	
 	this.drawgraphs = function ( ctx ) { // draw graphs
 		ctx.font = "20px Arial";
 		ctx.fillStyle = "red";
-		ctx.fillText(this.ninfected, 420, 30);
+		ctx.fillText('infected: ' + this.ninfected, 420, 30);
 		ctx.fillStyle = "black";
-		ctx.fillText(this.ndead, 470, 30);
+		ctx.fillText('dead: ' + this.ndead, 540, 30);
+		
+		ctx.lineWidth = 2;
+		
+		ctx.beginPath();
+		ctx.strokeStyle = "red";
+		ctx.moveTo(420, height - 10);
+		for (var i = 0; i < this.age; i++) {
+			ctx.lineTo(420 + 2*i, height - this.sninf[i]*2 - 10);
+		}
+		ctx.stroke();
+		
+		ctx.beginPath();
+		ctx.strokeStyle = "black";
+		ctx.moveTo(420, height - 10);
+		for (var i = 0; i < this.age; i++) {
+			ctx.lineTo(420 + 2*i, height - this.sndd[i]*2 - 10);
+		}
+		ctx.stroke();
 	}
 }
 
@@ -144,10 +170,13 @@ function person() { // person class
 		//console.log('show ' + this.position.x)
 		if (!this.dead) {
 			ctx.beginPath();
-			if (this.infected)
-				ctx.strokeStyle="red";
-			else
-				ctx.strokeStyle="lime";
+			if (this.infected) {
+				ctx.strokeStyle = "black";
+				ctx.lineWidth = 3;
+			} else {
+				ctx.strokeStyle = "grey";
+				ctx.lineWidth = 1;
+			}
 			ctx.arc(this.position.x, this.position.y, 3, 0, 2*Math.PI);
 			ctx.stroke();
 		}
