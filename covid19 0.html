@@ -45,6 +45,7 @@ function population(popSize, lifespan, infRate) { // create population
     this.persons = []; // array of persons
 	
 	this.ninfected = 0; // count infected in population
+	this.ndead = 0; // count deads in population
 	
     for (var i = 0; i < this.size; i++) { // associates a person to an array index
         this.persons.push(new person());
@@ -55,12 +56,15 @@ function population(popSize, lifespan, infRate) { // create population
     this.run = function (ctx) { // run: update persons infections and draw them, increment age
 	
 		this.ninfected = 0;
+		this.ndead = 0;
 		
         for (var i = 0; i < this.size; i++) {
 		
 			
-			if ( this.persons[i].infected )
+			if ( this.persons[i].infected ) // update statistics
 				this.ninfected += 1;
+			if ( this.persons[i].dead )
+				this.ndead += 1;
 				
             this.persons[i].update();
 			
@@ -85,6 +89,8 @@ function population(popSize, lifespan, infRate) { // create population
 		ctx.font = "20px Arial";
 		ctx.fillStyle = "red";
 		ctx.fillText(this.ninfected, 420, 30);
+		ctx.fillStyle = "black";
+		ctx.fillText(this.ndead, 470, 30);
 	}
 }
 
