@@ -3,6 +3,21 @@
 
 <canvas id="cnv" width="900" height="400"></canvas>
 
+<div class="slidercont_inf">
+  <input type="range" min="1" max="10" value="5" class="slider" id="infrg">
+  <p>Infection distance: <span id="infrgout"></span></p>
+</div>
+
+<div class="slidercont_mxil">
+  <input type="range" min="1" max="1000" value="800" class="slider" id="mxil">
+  <p>Max infection length: <span id="mxilout"></span></p>
+</div>
+
+<div class="slidercont_drt">
+  <input type="range" min="1" max="3000" value="2000" class="slider" id="drt">
+  <p>Death rate 1 per ...: <span id="drtout"></span></p>
+</div>
+
 <script>
 'use strict';
 
@@ -17,6 +32,41 @@ var framerate = 1/40;
 var infdist = 5; // infection distance
 var maxinft = 800; // max length of infection
 var deathrt = 1/2000; // death rate per cycle
+
+var gspan = document.getElementById("infrgout");
+gspan.textContent = infdist;
+gspan = document.getElementById("mxilout");
+gspan.textContent = maxinft;
+gspan = document.getElementById("drtout");
+gspan.textContent = 1 / deathrt;
+
+var sldr_inf = document.getElementById("infrg");
+var inf_out = document.getElementById("infrgout");
+var sldr_mxil = document.getElementById("mxil");
+var mxil_out = document.getElementById("mxilout");
+var sldr_drt = document.getElementById("drt");
+var drt_out = document.getElementById("drtout");
+
+// infection distance slider
+sldr_inf.oninput = function() {
+	var span = document.getElementById("infrgout");
+	span.textContent = this.value;
+	infdist = this.value;
+}
+
+// max inf length slider
+sldr_mxil.oninput = function() {
+	var span = document.getElementById("mxilout");
+	span.textContent = this.value;
+	maxinft = this.value;
+}
+
+// death rate slider
+sldr_drt.oninput = function() {
+	var span = document.getElementById("drtout");
+	span.textContent = this.value;
+	deathrt = 1 / this.value;
+}
 
 window.onload=function() {
 	var canv=document.getElementById("cnv");
