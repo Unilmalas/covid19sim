@@ -105,8 +105,9 @@ function population(popSize) { // create population
             this.particles[i].update();
 			for (var j = 0; j < this.size; j++) { // handle interactions
 				if ( i != j && this.particles[i].distanceToParticle( this.particles[j] ) < intdist ) {
+					let tmp_force = this.particles[i].acceleration;
 					this.particles[i].applyForce( this.particles[j].acceleration ); // collision handling
-					this.particles[j].applyForce( this.particles[i].acceleration );
+					this.particles[j].applyForce( tmp_force );
 				}
 			}
             this.particles[i].draw(ctx);
@@ -161,13 +162,8 @@ function particle(hc) { // particle class - init with hot or cold
 		//console.log('show ' + this.position.x)
 		if (!this.dead) {
 			ctx.beginPath();
-			if (this.infected) {
-				ctx.strokeStyle = "black";
-				ctx.lineWidth = 3;
-			} else {
-				ctx.strokeStyle = "grey";
-				ctx.lineWidth = 1;
-			}
+			ctx.strokeStyle = "grey";
+			ctx.lineWidth = 1;
 			ctx.arc(this.position.x, this.position.y, 3, 0, 2*Math.PI);
 			ctx.stroke();
 		}
