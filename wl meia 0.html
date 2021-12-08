@@ -21,7 +21,8 @@
 <script>
 'use strict';
 
-const maxForce = 0.05;
+const maxForceC = 0.009;
+const maxForceH = 0.05;
 var population;
 var HOT = 1;
 var COLD = 0;
@@ -128,20 +129,25 @@ function population(popSize) { // create population
 function particle(hc) { // particle class - init with hot or cold
 	this.hotcold = hc;  // 1=hot, 0=cold
 	if (this.hotcold < HOT) {  // cold
-		this.position = new Vec(randIntnp(width/8)+width/4, randIntnp(height/2)+height/2); // init positions
-		this.velocity = new Vec(randIntnp(2) / 40, randIntnp(2) / 40);
-		this.acceleration = new Vec(randIntnp(2) / 90, randIntnp(2) / 90);
+		//this.position = new Vec(randIntnp(width/4)+width/4, randIntnp(height/2)+height/2); // init positions
+		this.position = new Vec(randIntnp(width/4)+width/4, randIntnp(height/2)+height/2); // init positions
+		this.velocity = new Vec(randIntnp(2) / 100, randIntnp(2) / 100);
+		this.acceleration = new Vec(randIntnp(2) / 800, randIntnp(2) / 800);
 	} else {
-		this.position = new Vec(randIntnp(width/8)+3*width/4, randIntnp(height/2)+height/2); // init positions
-		this.velocity = new Vec(randIntnp(4) / 40, randIntnp(4) / 40);
-		this.acceleration = new Vec(randIntnp(2) / 90, randIntnp(2) / 90);
+		//this.position = new Vec(randIntnp(width/4)+3*width/4, randIntnp(height/2)+height/2); // init positions
+		this.position = new Vec(randIntnp(width/4)+3*width/4, randIntnp(height/2)+height/2); // init positions
+		this.velocity = new Vec(randIntnp(4) / 50, randIntnp(4) / 50);
+		this.acceleration = new Vec(randIntnp(2) / 200, randIntnp(2) / 200);
 	}
     
 	//this.path = []; // path logging
 
     this.applyForce = function (force) { // person can recieve force and add to acceleration
         this.acceleration.vadd(force);
-		this.acceleration.vlimit(maxForce);
+		if (this.hotcold < HOT)
+			this.acceleration.vlimit(maxForceC);
+		else
+			this.acceleration.vlimit(maxForceH);
     };
 
     this.update = function () { // update physics
