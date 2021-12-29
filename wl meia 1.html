@@ -24,7 +24,7 @@
 const maxForceC = 0.009;
 const maxForceH = 0.05;
 const maxVC = 0.7;
-const maxVH = 1.8;
+const maxVH = 2.2;
 var population;
 var HOT = 1;
 var COLD = 0;
@@ -95,7 +95,7 @@ function draw(canv, ctx) { // update frame
 function population(popSize) { // create population
     this.size = popSize; // number of particles
     this.particles = []; // array of particles
-	//this.avrg_velocity = 0.; // average velocity over population
+	this.avrg_velocity = 0.; // average velocity over population
     for (var i = 0; i < this.size; i++) { // associates a particle to an array index
 		if ( Math.random() < 0.5 )  // hot and col 1:1
 			this.particles.push(new particle(COLD));
@@ -104,10 +104,10 @@ function population(popSize) { // create population
     }
 	
     this.run = function (ctx) { // run: update particles and draw them
-		//let tot_vel = 0.;
+		let tot_vel = 0.;
         for (var i = 0; i < this.size; i++) {		
             this.particles[i].update(this.avrg_velocity);
-			//tot_vel += this.particles[i].velocity.vlen();
+			tot_vel += this.particles[i].velocity.vlen();
 			for (var j = 0; j < this.size; j++) { // handle interactions
 				if ( i != j && this.particles[i].distanceToParticle( this.particles[j] ) < intdist ) {
 					//let tmp_force = this.particles[i].acceleration;
@@ -121,7 +121,7 @@ function population(popSize) { // create population
             this.particles[i].draw(ctx);
         }
 			
-		//this.avrg_velocity = tot_vel / this.size;
+		this.avrg_velocity = tot_vel / this.size;
 		this.drawgraphs(ctx);
     };
 	
@@ -175,15 +175,15 @@ function particle(hc) { // particle class - init with hot or cold
         this.position.vadd(this.velocity);
         //this.acceleration.vmultc(0.01);
 		
-		//if (this.velocity.vlen() >= v_avrg)
-			//this.hotcold = 1;
-		//else
-			//this.hotcold = 0;
+		if (this.velocity.vlen() >= v_avrg)
+			this.hotcold = 1;
+		else
+			this.hotcold = 0;
 		
-		//if (this.hotcold < HOT)
-			//this.velocity.vmultc(tempcld * 0.01);
-		//else
-			//this.velocity.vmultc(temphot * 0.01);
+		if (this.hotcold < HOT)
+			this.velocity.vmultc(tempcld * 0.01);
+		else
+			this.velocity.vmultc(temphot * 0.01);
 			
 		// path logging
 		//this.path.push(JSON.parse(JSON.stringify(this.position)));
@@ -315,7 +315,8 @@ function dist(x0, y0, x1, y1) {
 }
 
 function randInt( maxN ) {
-	return ~~( Math.random() * maxN );     // returns a number between 0 and maxN-1
+	let seconds = Date().now() / 10000000;
+	return ~~( (Math.random() + seconds) * maxN );     // returns a number between 0 and maxN-1
 }
 
 function randIntnp( maxN ) {
