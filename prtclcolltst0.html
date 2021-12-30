@@ -1,0 +1,275 @@
+<!doctype html>
+<html>
+
+<canvas id="cnv" width="900" height="400"></canvas>
+
+<script>
+'use strict';
+
+const maxForceC = 0.009;
+const maxForceH = 0.05;
+const maxVC = 0.7;
+const maxVH = 2.2;
+var population;
+var HOT = 1;
+var COLD = 0;
+
+var width = 400;
+var height = 400;
+
+var framerate = 1/40;
+
+var intdist = 10; // interaction distance
+var temphot = 100;  // temperature hot
+var tempcld = 1;  // temperature cold
+
+window.onload=function() {
+	var canv=document.getElementById("cnv");
+	var ctx=canv.getContext("2d");
+
+	population = new population(2);
+
+	setInterval(draw, 1000 * framerate, canv, ctx); // calls a function or evaluates an expression at specified intervals
+}
+
+function draw(canv, ctx) { // update frame
+	ctx.fillStyle="white";
+	ctx.fillRect(0, 0, width, canv.height); // draw background
+	ctx.fillStyle="white";
+	ctx.fillRect(width, 0, canv.width, canv.height); // draw background	
+	population.run(ctx);
+}
+
+
+// population
+function population(popSize) { // create population
+    this.size = popSize; // number of particles
+    this.particles = []; // array of particles
+	this.avrg_velocity = 0.; // average velocity over population
+    for (var i = 0; i < this.size; i++) { // associates a particle to an array index
+		if ( Math.random() < 0.5 )  // hot and col 1:1
+			this.particles.push(new particle(COLD));
+		else
+			this.particles.push(new particle(HOT));
+    }
+	
+    this.run = function (ctx) { // run: update particles and draw them
+		let tot_vel = 0.;
+        for (var i = 0; i < this.size; i++) {		
+            this.particles[i].update(this.avrg_velocity);
+			tot_vel += this.particles[i].velocity.vlen();
+			for (var j = 0; j < this.size; j++) { // handle interactions
+				if ( i != j && this.particles[i].distanceToParticle( this.particles[j] ) < intdist ) {
+
+					let tmp_p = this.particles[i].position;
+					let tmp_v = this.particles[i].velocity;
+					this.particles[i].handleCollision( this.particles[j].position, this.particles[j].velocity );
+					this.particles[j].handleCollision( tmp_p, tmp_v );
+				}
+			}
+            this.particles[i].draw(ctx);
+        }
+			
+		this.avrg_velocity = tot_vel / this.size;
+		this.drawgraphs(ctx);
+    };
+	
+	this.drawgraphs = function ( ctx ) { // draw graphs
+		ctx.font = "20px Arial";
+		ctx.fillStyle = "red";
+		ctx.fillText('particles: ' + this.size, 420, 30);
+
+		ctx.fillText('v0: ' + this.particles[0].velocity.vstr(), 420, 60);
+		ctx.fillText('v1: ' + this.particles[1].velocity.vstr(), 420, 90);		
+	}
+}
+
+
+// particle
+function particle(hc) { // particle class - init with hot or cold
+	this.hotcold = hc;  // 1=hot, 0=cold
+	if (this.hotcold < HOT) {  // cold
+		//this.position = new Vec(randnp(width/4)+width/4, randnp(height/2)+height/2); // init positions
+		this.position = new Vec(180, 200); // init positions
+		this.velocity = new Vec(0.2, 0.03);
+		//this.acceleration = new Vec(randnp(2) / 800, randnp(2) / 800);
+	} else {
+		//this.position = new Vec(randnp(width/4)+3*width/4, randnp(height/2)+height/2); // init positions
+		this.position = new Vec(220, 200); // init positions
+		this.velocity = new Vec(-0.1, 0);
+		//this.acceleration = new Vec(randnp(2) / 200, randnp(2) / 200);
+	}
+    
+	//this.path = []; // path logging
+
+    this.applyForce = function (force) { // particle can recieve force and add to acceleration
+        this.acceleration.vadd(force);
+		if (this.hotcold < HOT)
+			this.acceleration.vlimit(maxForceC);
+		else
+			this.acceleration.vlimit(maxForceH);
+    };
+	
+	this.handleCollision = function (p_other, v_other) { // particle collision
+		let dx = new Vec(this.position.x - p_other.x, this.position.y - p_other.y);
+		let dv = new Vec(this.velocity.x - v_other.x, this.velocity.y - v_other.y);
+		let cf = dv.vdot(dx) / (dx.vlen() ** 2);
+		dx.vmultc(cf);
+		this.velocity.vsub(dx);
+		if (this.hotcold < HOT)
+			this.velocity.vlimit(maxVC);
+		else
+			this.velocity.vlimit(maxVH);
+    };
+
+    this.update = function (v_avrg) { // update physics
+        //this.velocity.vadd(this.acceleration);
+        this.position.vadd(this.velocity);
+        //this.acceleration.vmultc(0.01);
+		
+		if (this.velocity.vlen() >= v_avrg)
+			this.hotcold = 1;
+		else
+			this.hotcold = 0;
+		
+		if (this.hotcold < HOT)
+			this.velocity.vmultc(tempcld * 0.01);
+		else
+			this.velocity.vmultc(temphot * 0.01);
+			
+		// path logging
+		//this.path.push(JSON.parse(JSON.stringify(this.position)));
+
+		if (this.position.x > width || this.position.x < 0)
+			this.velocity.x *= -1;
+		if (this.position.y > height || this.position.y < 0)
+			this.velocity.y *= -1;
+    };
+
+    this.draw = function (ctx) {
+		//console.log('show ' + this.position.x)
+		ctx.beginPath();
+		//ctx.strokeStyle = "grey";
+		if (this.hotcold < HOT)
+			ctx.strokeStyle = "blue";
+		else
+			ctx.strokeStyle = "red";
+		ctx.lineWidth = 1;
+		ctx.arc(this.position.x, this.position.y, 3, 0, 2*Math.PI);
+		ctx.stroke();
+
+    };
+
+    this.distanceToParticle = function (particle) { // distance to other particle
+        return dist(this.position.x, this.position.y, particle.position.x, particle.position.y);
+    };
+}
+
+
+
+// vector functions
+
+function Vec(x, y) {
+	this.x = x;
+	this.y = y;
+}
+
+function rndVec() {
+	let v = new Vec(randnp(10), randnp(10));
+	v.vnorm();
+	return v;
+}
+
+Vec.prototype.set = function(a) {
+	this.x += a.x;
+	this.y += a.y;
+}
+
+Vec.prototype.eqpos = function(a) {
+	if ( this.x == a.x && this.y == a.y )
+		return true;
+	return false;
+}
+
+Vec.prototype.vadd = function(a) {
+	this.x += a.x;
+	this.y += a.y;
+}
+
+Vec.prototype.vsub = function(a) {
+	this.x -= a.x;
+	this.y -= a.y;
+}
+
+Vec.prototype.vinv = function() {
+	this.x *= -1;
+	this.y *= -1;
+}
+
+Vec.prototype.vlen = function() {
+	return Math.sqrt(( this.x * this.x ) + ( this.y * this.y ));
+}
+
+Vec.prototype.vmultc = function(c) {
+	this.x *= c;
+	this.y *= c;
+}
+
+Vec.prototype.vnorm = function() {
+	let vl = this.vlen();
+	if ( vl > 0. ) {
+		this.x /= vl;
+		this.y /= vl;
+	}
+}
+
+Vec.prototype.setMag = function(m) {
+	this.vnorm();
+	this.vmultc(m);
+}
+
+Vec.prototype.vlimit = function(l) {
+	if ( this.vlen() > l )
+		this.setMag(l);
+}
+
+Vec.prototype.vdot = function(a) {
+	return this.x * a.x + this.y * a.y;
+}
+
+Vec.prototype.vstr = function(a) {
+	return 'x: ' + this.x  + ' y: ' + this.y;
+}
+
+
+// util functions
+
+function vdelta(a, b) {
+	let dv = new Vec(a.x - b.x, a.y - b.y);
+	return dv;
+}
+
+function map(value, start0, stop0, start1, stop1) {
+	return ((value-start0)/(stop0-start0))*(stop1-start1)+start1;
+}
+
+function dist(x0, y0, x1, y1) {
+	let dx = x1 - x0;
+	let dy = y1 - y0;
+	return Math.sqrt(( dx * dx ) + ( dy * dy ));
+}
+
+function randInt( maxN ) {
+	let seconds = Date().now() / 10000000;
+	return ~~( (Math.random() + seconds) * maxN );     // returns a number between 0 and maxN-1
+}
+
+function randIntnp( maxN ) {
+	return ~~( Math.random() * 2. * maxN ) - maxN;     // returns a number between -(maxN-1) and maxN-1
+}
+
+function randnp( maxN ) {
+	return Math.random() * 2. * maxN - maxN;     // returns a number between -(maxN-1) and maxN-1
+}
+</script>
+</html>
