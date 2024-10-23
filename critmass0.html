@@ -1,0 +1,287 @@
+<!doctype html>
+<html>
+
+<canvas id="cnv" width="900" height="400"></canvas>
+
+<!--
+<div class="slidercont_intd">
+  <input type="range" min="1" max="30" value="10" class="slider" id="intd">
+  <p>interaction distance: <span id="intdist"></span></p>
+</div>
+
+<div class="slidercont_tmph">
+  <input type="range" min="1" max="100" value="80" class="slider" id="tmph">
+  <p>hot temperature: <span id="temphot"></span></p>
+</div>
+
+<div class="slidercont_tmpc">
+  <input type="range" min="1" max="100" value="10" class="slider" id="tmpc">
+  <p>cold temperature: <span id="tempcld"></span></p>
+</div>
+-->
+
+<script>
+'use strict';
+
+const maxForceC = 1.9;
+const maxForceH = 1.9;
+var population;
+
+var width = 400;
+var height = 400;
+
+var framerate = 1/10;
+
+var intdist = 10; // interaction distance
+//var temphot = 100;  // temperature hot
+//var tempcld = 0;  // temperature cold
+
+//var gspan = document.getElementById("intdist");
+//gspan.textContent = intdist;
+//gspan = document.getElementById("temphot");
+//gspan.textContent = temphot;
+//gspan = document.getElementById("tempcld");
+//gspan.textContent = tempcld;
+
+//var sldr_intd = document.getElementById("intd");
+//var intd_out = document.getElementById("intdist");
+//var sldr_tmph = document.getElementById("tmph");
+//var tmph_out = document.getElementById("temphot");
+//var sldr_tmpc = document.getElementById("tmpc");
+//var tmpc_out = document.getElementById("tempcld");
+
+// interaction distance slider
+//sldr_intd.oninput = function() {
+//	var span = document.getElementById("intdist");
+//	span.textContent = this.value;
+//	intdist = this.value;
+//}
+
+window.onload=function() {
+	var canv=document.getElementById("cnv");
+	var ctx=canv.getContext("2d");
+
+	population = new population(120);
+
+	setInterval(draw, 100 * framerate, canv, ctx);  // calls a function or evaluates an expression at specified intervals
+}
+
+function draw(canv, ctx) {  // update frame
+	ctx.fillStyle="white";
+	ctx.fillRect(0, 0, width, canv.height);  // draw background
+	ctx.fillStyle="white";
+	ctx.fillRect(width, 0, canv.width, canv.height);  // draw background	
+	population.run(ctx);
+}
+
+
+// population
+function population(popSize) {  // create population
+    this.size = popSize;  // number of atoms
+    this.atoms = [];  // array of atoms
+	this.neutrons = [];  // array of neutrons
+	
+	this.dxy = Math.floor(Math.sqrt(width * height / popSize));
+	this.firstrun = 1;  // indicator for first run: let just one atom decay
+	
+    for (var i = 0; i < this.size; i++) {  // associates an atom to an array index
+		this.atoms.push(new atom(((i * this.dxy) % width) + this.dxy, this.dxy * (Math.floor((i * this.dxy) / width))));
+    }
+	
+    this.run = function (ctx) {  // run: update atoms, neutrons and draw them
+		// first run
+		if (this.firstrun) {
+			this.firstrun = 0;
+			this.ndidx = randInt(this.size);
+			this.neutrons.push(this.atoms[this.ndidx].decay(), this.atoms[this.ndidx].decay(), this.atoms[this.ndidx].decay());  // todo: atom could have decayed already; for now 3 neutrons
+		}
+		
+		//console.log("n neutrons: " + this.neutrons.length);
+		
+		// handle fission and neutron emissions
+		for (var i = 0; i < this.neutrons.length; i++) {  // process all neutrons
+            //this.atoms[i].update();
+			this.neutrons[i].update();
+        
+			for (var j = 0; j < this.size; j++) {  // handle interactions neutrons - atoms
+				if ( this.neutrons[i].distanceToAtom( this.atoms[j] ) < intdist && this.atoms[j].isalive ) {
+					let tmp_force = this.neutrons[i].acceleration;
+					//this.neutrons[i].applyForce( this.neutrons[j].acceleration );  // collision handling
+					//this.neutrons[j].applyForce( tmp_force );
+					this.neutrons.push(this.atoms[j].decay(), this.atoms[j].decay(), this.atoms[j].decay());
+				}
+			}
+            this.atoms[i].draw(ctx);
+			this.neutrons[i].draw(ctx);
+        }
+			
+		this.drawgraphs(ctx);
+    };
+	
+	this.drawgraphs = function ( ctx ) {  // draw graphs
+		ctx.font = "20px Arial";
+		ctx.fillStyle = "red";
+		ctx.fillText('atoms: ' + this.size, 420, 30);	
+	}
+}
+
+
+// atom
+function atom(x, y) {  // atom class
+	this.position = new Vec(x, y);  // init positions
+	this.isalive = 1;  // not yet decayed = 1
+
+    this.update = function () {  // update physics
+        
+    };
+
+    this.draw = function (ctx) {
+		//console.log('show ' + this.position.x)
+		if (this.isalive) {
+			ctx.beginPath();
+			ctx.strokeStyle = "grey";
+			ctx.lineWidth = 1;
+			ctx.arc(this.position.x, this.position.y, 3, 0, 2*Math.PI);
+			ctx.stroke();
+		} else {
+			// do not draw atom
+		}
+    };
+
+    this.distanceToParticle = function (atom) { // distance to other atom
+        return dist(this.position.x, this.position.y, atom.position.x, atom.position.y);
+    };
+	
+	this.decay = function () {  // handle decy of atom
+		this.isalive = 0;
+		return new neutron(this.position.x, this.position.y);
+	};
+}
+
+
+
+// neutron
+function neutron(x, y) { // neutron class
+	this.position = new Vec(x, y); // init positions
+	this.velocity = new Vec(randIntnp(5) / 100, randIntnp(5) / 100);
+	this.acceleration = new Vec(randIntnp(5) / 100, randIntnp(5) / 100);
+
+    this.applyForce = function (force) { // person can recieve force and add to acceleration
+        this.acceleration.vadd(force);
+		this.acceleration.vlimit(maxForceH);
+    };
+
+    this.update = function () { // update physics
+        this.velocity.vadd(this.acceleration);
+        this.position.vadd(this.velocity);
+        this.acceleration.vmultc(0.9);
+
+		if (this.position.x > width || this.position.x < 0)
+			this.velocity.x *= -1;
+		if (this.position.y > height || this.position.y < 0)
+			this.velocity.y *= -1;
+    };
+
+    this.draw = function (ctx) {
+		//console.log('show ' + this.position.x)
+		if (!this.dead) {
+			ctx.beginPath();
+			ctx.strokeStyle = "red";
+			ctx.lineWidth = 1;
+			ctx.arc(this.position.x, this.position.y, 3, 0, 2*Math.PI);
+			ctx.stroke();
+		}
+    };
+
+    this.distanceToAtom = function (atom) { // distance to atom
+        return dist(this.position.x, this.position.y, atom.position.x, atom.position.y);
+    };
+}
+
+
+
+
+
+
+// vector functions
+
+function Vec(x, y) {
+	this.x = x;
+	this.y = y;
+}
+
+function rndVec() {
+	let v = new Vec(randIntnp(10), randIntnp(10));
+	v.vnorm();
+	return v;
+}
+
+Vec.prototype.set = function(a) {
+	this.x += a.x;
+	this.y += a.y;
+}
+
+Vec.prototype.eqpos = function(a) {
+	if ( this.x == a.x && this.y == a.y )
+		return true;
+	return false;
+}
+
+Vec.prototype.vadd = function(a) {
+	this.x += a.x;
+	this.y += a.y;
+}
+
+Vec.prototype.vsub = function(a) {
+	this.x -= a.x;
+	this.y -= a.y;
+}
+
+Vec.prototype.vlen = function() {
+	return Math.sqrt(( this.x * this.x ) + ( this.y * this.y ));
+}
+
+Vec.prototype.vmultc = function(c) {
+	this.x *= c;
+	this.y *= c;
+}
+
+Vec.prototype.vnorm = function() {
+	let vl = this.vlen();
+	if ( vl > 0 ) {
+		this.x /= vl;
+		this.y /= vl;
+	}
+}
+
+Vec.prototype.setMag = function(m) {
+	this.vnorm();
+	this.vmultc(m);
+}
+
+Vec.prototype.vlimit = function(l) {
+	if ( this.vlen() > l )
+		this.setMag(l);
+}
+
+// util functions
+
+function map(value, start0, stop0, start1, stop1) {
+	return ((value-start0)/(stop0-start0))*(stop1-start1)+start1;
+}
+
+function dist(x0, y0, x1, y1) {
+	let dx = x1 - x0;
+	let dy = y1 - y0;
+	return Math.sqrt(( dx * dx ) + ( dy * dy ));
+}
+
+function randInt( maxN ) {
+	return ~~( Math.random() * maxN );     // returns a number between 0 and maxN-1
+}
+
+function randIntnp( maxN ) {
+	return ~~( Math.random() * 2. * maxN ) - maxN;     // returns a number between -(maxN-1) and maxN-1
+}
+</script>
+</html>
